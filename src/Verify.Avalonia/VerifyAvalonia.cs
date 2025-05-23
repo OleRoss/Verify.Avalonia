@@ -1,4 +1,5 @@
 ﻿using Avalonia.Styling;
+using Avalonia.Threading;
 
 namespace VerifyTests;
 
@@ -13,6 +14,15 @@ public static partial class VerifyAvalonia
     }
 
     internal static bool ShouldIncludeThemeVariant;
+
+    /// <summary> Disables the generation of image snapshots </summary>
+    public static void DisableImageGeneration()
+    {
+        InnerVerifier.ThrowIfVerifyHasBeenRun();
+        ShouldDisableImageGeneration = true;
+    }
+
+    internal static bool ShouldDisableImageGeneration;
 
     public static void Initialize()
     {
@@ -63,6 +73,16 @@ public static partial class VerifyAvalonia
 
     static IEnumerable<Target> BuildWindowTargets(TopLevel window)
     {
+        if (ShouldDisableImageGeneration)
+        {
+            // Tick once to finish up render tasks.
+            // Necessary because of properties such as 'Width' or 'Height' which are computed only during rendering.
+            // Matches logic of Avalonia.Headless.HeadlessWindowExtensions.CaptureRenderedFrame()
+            Dispatcher.UIThread.RunJobs();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            return [];
+        }
+
         if (ShouldIncludeThemeVariant)
         {
             var application = Application.Current!;
